@@ -1,6 +1,6 @@
 {
   "name": "syslogcanvas",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Lightweight self-hosted syslog + SNMP trap receiver: catch UDP syslog and v1/v2c traps, store them in SQLite, review and export them from a dependency-free web UI.",
   "license": "Unlicense",
   "repository": {

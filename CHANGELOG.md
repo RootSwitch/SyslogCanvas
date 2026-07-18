@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.0 - 2026-07-18
+## 1.0.0 - 2026-07-18
 
-Initial release.
+Initial public release.
 
 - **Syslog receiver** (UDP): RFC 3164 and RFC 5424 parsing - PRI,
   timestamp, hostname, and app tag extracted when present, the raw
