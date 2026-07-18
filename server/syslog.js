@@ -86,7 +86,11 @@ function parse(line, sourceIp, nowMs) {
             let msg = tail.slice(sdEnd);
             if (msg.startsWith(' ')) msg = msg.slice(1);
             if (msg.charCodeAt(0) === 0xFEFF) msg = msg.slice(1); // UTF-8 BOM
-            row.msg = msg || tail || rest;
+            // A well-formed header with no MSG is a legitimately EMPTY message -
+            // the old `msg || tail || rest` resurrected the nil-SD marker ('-')
+            // as the body. Only fall back to the raw line when the header itself
+            // didn't parse (tail empty because headerLen overran the string).
+            row.msg = tail ? msg : rest;
             return row;
         }
         // Malformed 5424 header - fall through and store as-is.

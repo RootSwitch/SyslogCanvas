@@ -17,8 +17,10 @@ const insertMany = db.transaction((rows) => {
     for (const r of rows) insStmt.run(r);
 });
 
+const DROP_BATCH = Math.max(1, Math.floor(QUEUE_MAX * 0.01));   // shed 1% at a time
 let queue = [];
 let flushTimer = null;
+let flushScheduled = false;
 let capTimer = null;
 let dropped = 0;        // rows discarded by backpressure since boot
 let received = 0;       // rows accepted since boot
@@ -28,8 +30,12 @@ function log(...args) { console.log(new Date().toISOString(), '[store]', ...args
 
 function enqueue(row) {
     if (queue.length >= QUEUE_MAX) {
-        queue.shift();
-        dropped++;
+        // Shed a BATCH, not one row per datagram: a per-datagram queue.shift()
+        // reindexes the whole 50k array every time, so a sustained flood cost
+        // O(n) per packet = O(n^2) over the burst. Dropping 1% at once makes
+        // the O(n) splice amortize to O(1) per datagram.
+        queue.splice(0, DROP_BATCH);
+        dropped += DROP_BATCH;
         const now = Date.now();
         if (now - lastDropLog > 60000) {
             lastDropLog = now;
@@ -39,7 +45,12 @@ function enqueue(row) {
     queue.push(row);
     received++;
     if (queue.length >= FLUSH_ROWS) {
-        flush();
+        // Defer off the datagram callback. flush() runs a synchronous SQLite
+        // transaction; calling it inline here would block the event loop - and
+        // further datagram reception - on the database write, which the header
+        // comment explicitly promises not to do. setImmediate lets the current
+        // datagram handler return first.
+        if (!flushScheduled) { flushScheduled = true; setImmediate(flush); }
     } else if (!flushTimer) {
         flushTimer = setTimeout(flush, FLUSH_MS);
         flushTimer.unref();
@@ -47,6 +58,7 @@ function enqueue(row) {
 }
 
 function flush() {
+    flushScheduled = false;
     if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
     if (queue.length === 0) return;
     const rows = queue;
