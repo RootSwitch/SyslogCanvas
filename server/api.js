@@ -24,6 +24,20 @@ const bad = (res, msg) => json(res, 400, { error: msg });
 const notFound = (res) => json(res, 404, { error: 'not found' });
 
 function clientIp(req) {
+    // Behind the reverse proxy the README recommends for TLS, every request
+    // arrives from the proxy's address - so keying the login limiter on
+    // socket.remoteAddress alone would let one attacker's failures lock out
+    // everyone. Honor X-Forwarded-For ONLY when the operator asserts a trusted
+    // proxy via TRUST_PROXY=1; otherwise a client could spoof the header to
+    // evade the limiter or lock out an arbitrary IP. Take the first hop (the
+    // original client) that a trusted proxy prepends.
+    if (process.env.TRUST_PROXY === '1') {
+        const xff = req.headers['x-forwarded-for'];
+        if (xff) {
+            const first = String(xff).split(',')[0].trim();
+            if (first) { return first; }
+        }
+    }
     return req.socket.remoteAddress || 'unknown';
 }
 
