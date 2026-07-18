@@ -291,6 +291,8 @@ SyslogCanvas is a networked app with a small, deliberate threat model:
 npm install
 npm start                # UI on http://localhost:9514
 node tools/send-test.js  # rows to look at, ten seconds later
+node tools/seed-demo.js  # or a whole fictional homelab: ~120k rows over 90
+                         # days, incl. a UPS power-event story (sev:<=4)
 ```
 
 No build step: edit, refresh. The frontend is three static files; the
@@ -310,6 +312,7 @@ server restarts in under a second.
 | `server/db.js` / `auth.js` | SQLite schema and migrations; scrypt password + sessions |
 | `public/` | The whole frontend: vanilla HTML/CSS/JS, no build step |
 | `tools/send-test.js` | Test syslog + trap traffic for development |
+| `tools/seed-demo.js` | Synthetic demo fleet for screenshots and UI work (`--rows N` to scale) |
 
 Runtime dependencies:
 [`net-snmp`](https://www.npmjs.com/package/net-snmp) and
