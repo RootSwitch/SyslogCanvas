@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SyslogCanvas</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="topbar">
+    <span class="brand">
+        <span class="logo">
+            <!-- The family easel mark (CrossCanvas/PingCanvas/SNMPCanvas
+                 siblings), with log lines on the canvas - one of them the
+                 line you were looking for. Easel takes the theme accent via
+                 currentColor; the lines take the logo vars. -->
+            <svg width="22" height="22" viewBox="0 0 64 64" fill="none" stroke="currentColor">
+                <path d="M32 5 L32 12" stroke-width="5" stroke-linecap="round"/>
+                <path d="M18 45 L12 59 M46 45 L52 59 M32 45 L32 59" stroke-width="5" stroke-linecap="round"/>
+                <rect x="9" y="12" width="46" height="34" rx="3" fill="#f4f1ea" stroke-width="4"/>
+                <path d="M14 20 H44" stroke="var(--se-logo-a)" stroke-width="4" stroke-linecap="round"/>
+                <path d="M14 27 H36" stroke="var(--se-logo-a)" stroke-width="4" stroke-linecap="round"/>
+                <path d="M14 34 H48" stroke="var(--se-logo-b)" stroke-width="4" stroke-linecap="round"/>
+                <path d="M14 41 H30" stroke="var(--se-logo-a)" stroke-width="4" stroke-linecap="round"/>
+            </svg>
+        </span>
+        <span class="brand-name">SyslogCanvas</span>
+    </span>
+    <nav id="nav" style="display:none">
+        <a href="#/messages" data-nav="messages">Messages</a>
+        <a href="#/settings" data-nav="settings">Settings</a>
+    </nav>
+    <span class="topbar-spacer"></span>
+    <select id="theme-select" title="Theme"></select>
+    <button id="logout-btn" style="display:none">Log out</button>
+</div>
+<div id="main"></div>
+<dialog id="modal"></dialog>
+<script src="themes.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

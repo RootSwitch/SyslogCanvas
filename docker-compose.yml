@@ -1,0 +1,33 @@
+services:
+  syslogcanvas:
+    build: .
+    container_name: syslogcanvas
+    # Default web port 9514 ("514" for syslog) - stays clear of UptimeKuma
+    # (3001), CrossCanvas/PingCanvas (8080/8443), and SNMPCanvas (9161) on a
+    # shared docker host.
+    ports:
+      - "9514:9514"        # web UI (HTTP, or HTTPS once a cert exists)
+      # Devices send to the standard ports on the host; inside the container
+      # the listeners bind unprivileged 5514/5162 so the process can run as
+      # the non-root "node" user.
+      - "514:5514/udp"     # syslog
+      - "162:5162/udp"     # SNMP traps (v1 + v2c)
+    volumes:
+      # Everything persistent lives here ON THE HOST: the SQLite database and
+      # TLS certs (data/certs/). Create it writable by the container user
+      # first:
+      #   mkdir -p data && sudo chown 1000:1000 data
+      # The :z suffix labels the mount for SELinux hosts (RHEL/Rocky/Fedora);
+      # it's a no-op elsewhere.
+      - ./data:/data:z
+    environment:
+      # Timezone governs the nightly prune schedule and log timestamps
+      - TZ=Etc/UTC
+      # Optional: pre-set the admin password (otherwise the UI offers a
+      # first-run setup page)
+      #- ADMIN_PASSWORD=change-me
+    restart: unless-stopped
+
+# HTTPS: run  ./tools/gen-cert.sh <hostname-or-ip>  once on the host (or drop
+# your own PEM pair at data/certs/server.crt + server.key), then
+# `docker compose restart`. The server switches to HTTPS automatically.
