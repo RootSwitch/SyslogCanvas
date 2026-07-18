@@ -82,8 +82,8 @@ platform that grows features faster than one person's weekends can maintain
 them. So alerting, forwarding, parsing rules, dashboards, and correlation
 aren't on the roadmap: those are jobs for bigger tools, and the tools built
 around them are worth running if you need them. This exists for the middle
-ground where Graylog is overkill but "the switch doesn't remember its own
-logs after a reboot" keeps stinging.
+ground where Graylog is more than you need but a switch that forgets its
+own logs after a reboot is a recurring problem.
 
 Two honest limits worth knowing up front: syslog and traps over UDP are
 fire-and-forget - a datagram lost on the wire is lost, which is fine for
@@ -112,8 +112,8 @@ services:
 ```
 
 ```
-mkdir -p data && sudo chown 1000:1000 data   # container runs as uid 1000
-docker compose up -d
+mkdir -p data && sudo chown 1000:1000 data && sudo chmod 750 data
+docker compose up -d                         # container runs as uid 1000
 ```
 
 Open `http://host:9514`, set the admin password on the first-run page, and
@@ -273,7 +273,9 @@ SyslogCanvas is a networked app with a small, deliberate threat model:
   usernames, and the occasional secret some device helpfully printed. The
   database, the CSV exports, and the **backups downloaded from Settings**
   all contain the full message history in the clear - handle them like the
-  logs they are.
+  logs they are. On a multi-user host the database is only as protected as
+  the directory holding it, which is why the quick start ends in
+  `chmod 750 data`.
 - The web UI has one shared password and is designed for a trusted network
   segment; a reverse proxy adds TLS termination and extra auth cleanly if
   you want to go further. The first-run setup page belongs to whoever
@@ -295,8 +297,8 @@ node tools/seed-demo.js  # or a whole fictional homelab: ~120k rows over 90
                          # days, incl. a UPS power-event story (sev:<=4)
 ```
 
-No build step: edit, refresh. The frontend is three static files; the
-server restarts in under a second.
+No build step: edit, refresh. The frontend is static files served as-is;
+the server restarts in under a second.
 
 ### Project layout
 

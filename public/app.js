@@ -206,12 +206,12 @@
         const count = document.getElementById('msg-count');
         if (!body) return;
         body.innerHTML = msgRows.length === 0
-            ? `<tr><td colspan="6" class="muted" style="padding:18px 8px">${msgFilter ? 'Nothing matches this filter.' : 'No messages yet - point your devices’ syslog and SNMP trap targets at this host.'}</td></tr>`
+            ? `<tr><td colspan="6" class="muted" style="padding:18px 8px">${msgFilter ? 'Nothing matches this filter.' : "No messages yet - point your devices' syslog and SNMP trap targets at this host."}</td></tr>`
             : msgRows.map(rowHtml).join('');
         const from = (msgPage - 1) * pageSize() + 1;
         count.textContent = msgRows.length === 0
             ? (msgPage > 1 ? `page ${msgPage} is empty` : '0 messages')
-            : `${from}–${from + msgRows.length - 1}${msgHasMore ? ' of more' : ''}` +
+            : `${from}-${from + msgRows.length - 1}${msgHasMore ? ' of more' : ''}` +
               (msgPage > 1 || refreshMs() === 0 ? ' · tail paused' : '');
         for (const tr of body.querySelectorAll('tr.rowlink')) {
             tr.addEventListener('click', () => showMessageDetail(tr.dataset.id));

@@ -15,8 +15,8 @@ services:
     volumes:
       # Everything persistent lives here ON THE HOST: the SQLite database and
       # TLS certs (data/certs/). Create it writable by the container user
-      # first:
-      #   mkdir -p data && sudo chown 1000:1000 data
+      # (and not world-readable - it holds your full message history) first:
+      #   mkdir -p data && sudo chown 1000:1000 data && sudo chmod 750 data
       # The :z suffix labels the mount for SELinux hosts (RHEL/Rocky/Fedora);
       # it's a no-op elsewhere.
       - ./data:/data:z

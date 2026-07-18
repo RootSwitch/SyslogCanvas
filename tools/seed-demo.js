@@ -61,7 +61,7 @@ const NOISE = [
     [30, ...FW, 'filterlog', 16, 6, [
         'block,in,igb0,tcp,203.0.113.24:52140,192.168.1.1:443',
         'block,in,igb0,udp,198.51.100.9:5060,192.168.1.1:5060',
-        'pass,out,igb1,tcp,192.168.1.20:44312,151.101.1.140:443',
+        'pass,out,igb1,tcp,192.168.1.20:44312,203.0.113.140:443',
         'block,in,igb0,tcp,192.0.2.77:41002,192.168.1.1:22'
     ]],
     [8, ...FW, 'dhcpd', 3, 6, [
@@ -197,7 +197,7 @@ const RECENT = [
     syslogRow(3 * 60, ...AP, 'hostapd', 1, 6, 'wlan0: STA 3a:7f:12:9d:20:1b IEEE 802.11: disassociated'),
     syslogRow(2 * 60, ...FW, 'dhcpd', 3, 6, 'DHCPREQUEST for 192.168.1.83 from b0:be:76:11:0a:2c via igb1'),
     syslogRow(95, ...PVE, 'pvedaemon[1808]', 3, 6, 'starting task UPID:pve1:vzdump:100'),
-    syslogRow(40, ...FW, 'filterlog', 16, 6, 'pass,out,igb1,tcp,192.168.1.20:44312,151.101.1.140:443'),
+    syslogRow(40, ...FW, 'filterlog', 16, 6, 'pass,out,igb1,tcp,192.168.1.20:44312,203.0.113.140:443'),
     syslogRow(12, ...NAS, 'smbd[3312]', 1, 6, 'closed connection to service media')
 ];
 
