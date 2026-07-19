@@ -15,7 +15,8 @@
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "send-test": "node tools/send-test.js"
+    "send-test": "node tools/send-test.js",
+    "test": "node tools/test-parse.js"
   },
   "engines": {
     "node": ">=20"
