@@ -52,7 +52,10 @@ function messageSummary(r) {
 // apostrophe on anything a spreadsheet would execute as a formula.
 function csvCell(v) {
     let s = v === null || v === undefined ? '' : String(v);
-    if (/^[=+\-@]/.test(s)) s = "'" + s;
+    // A leading TAB or CR is stripped by some spreadsheet parsers before the
+    // formula check, so guard those too - the msg/host/app fields here come
+    // straight off the wire and are fully attacker-controlled.
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
     return '"' + s.replace(/"/g, '""').replace(/\r/g, '') + '"';
 }
 
