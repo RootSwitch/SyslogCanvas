@@ -1,6 +1,16 @@
+# Cap container logs so an unattended box can't slowly fill its disk - Docker's
+# default json-file driver never rotates. Doubly apt for a log receiver whose
+# stdout grows with syslog/trap volume. 10 MB x 5 = 50 MB. (Mirrors PingCanvas.)
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   syslogcanvas:
     build: .
+    image: syslogcanvas
     container_name: syslogcanvas
     # Default web port 9514 ("514" for syslog) - stays clear of UptimeKuma
     # (3001), CrossCanvas/PingCanvas (8080/8443), and SNMPCanvas (9161) on a
@@ -26,6 +36,7 @@ services:
       # Optional: pre-set the admin password (otherwise the UI offers a
       # first-run setup page)
       #- ADMIN_PASSWORD=change-me
+    logging: *default-logging
     restart: unless-stopped
 
 # HTTPS: run  ./tools/gen-cert.sh <hostname-or-ip>  once on the host (or drop
