@@ -194,9 +194,47 @@ first boot). Old image layers accumulate over time - an occasional
 
 One field note on restarts: a few syslog senders (pfSense among them) use a
 *connected* UDP socket and can silently stop sending after the receiver
-blinks - the ICMP port-unreachable from the restart window wedges their
-socket until their syslog service is bounced. If one device goes quiet
-after an update, restart its syslog service before suspecting SyslogCanvas.
+blinks. During a reboot there's a window where the host is up but this
+container isn't yet, so a syslog packet hits port 514 with no listener and
+the kernel fires back an ICMP port-unreachable; pfSense's syslog-ng takes
+that as `ECONNREFUSED` and stops sending until its syslog service is bounced.
+If one device goes quiet after an update, restart its syslog service first.
+
+To *prevent* it, stop the host from emitting that ICMP to the sender:
+
+```bash
+iptables -I OUTPUT -p icmp --icmp-type port-unreachable -d <SENDER_IP> -j DROP
+```
+
+`port-unreachable` is only ICMP type 3 code 3, so path-MTU discovery is
+untouched; drop the `-d` to cover every connected-UDP sender. But a raw rule
+does not survive a reboot - the exact trigger - so make it persistent. The
+most reliable way across distros (and it coexists with Docker, since it only
+touches the OUTPUT chain) is a tiny systemd unit that re-adds it once
+networking is up:
+
+```ini
+# /etc/systemd/system/syslog-icmp-guard.service
+[Unit]
+Description=Suppress ICMP port-unreachable to syslog senders (survives reboots)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'iptables -C OUTPUT -p icmp --icmp-type port-unreachable -d <SENDER_IP> -j DROP 2>/dev/null || iptables -A OUTPUT -p icmp --icmp-type port-unreachable -d <SENDER_IP> -j DROP'
+ExecStop=/sbin/iptables -D OUTPUT -p icmp --icmp-type port-unreachable -d <SENDER_IP> -j DROP
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then `sudo systemctl enable --now syslog-icmp-guard.service`. (Debian/Ubuntu
+can instead `apt install iptables-persistent` + `netfilter-persistent save`;
+the RHEL/Rocky `firewall-cmd --permanent --direct` equivalent works ONLY if
+firewalld is actually running - the systemd unit above does not care either
+way.)
 
 ### Running without Docker
 
