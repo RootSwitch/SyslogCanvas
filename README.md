@@ -7,23 +7,28 @@
 
 SyslogCanvas listens for syslog messages (UDP/514) and SNMP traps (v1/v2c,
 UDP/162), stores every datagram indexed by source IP, and gives you one
-filterable table to answer "what was that device saying at 3am". It is the
-fourth member of the Canvas family:
+filterable table to answer "what was that device saying at 3am". It is one
+of five members of the Canvas family:
 [**CrossCanvas**](https://github.com/RootSwitch/CrossCanvas) draws your
 network, [**PingCanvas**](https://github.com/RootSwitch/PingCanvas) turns
 those diagrams into a live reachability wall,
 [**SNMPCanvas**](https://github.com/RootSwitch/SNMPCanvas) graphs the
-performance history, and SyslogCanvas remembers what your devices said.
+performance history,
+[**AlertCanvas**](https://github.com/RootSwitch/AlertCanvas) turns that
+history into raise/clear notifications, and SyslogCanvas remembers what
+your devices said.
 
 Where its sisters interlock - boards flow from CrossCanvas to PingCanvas,
-SNMPCanvas feeds live values back onto those boards - SyslogCanvas is the
-family's **independent member**: nothing feeds it, nothing reads from it,
-and it needs none of the others installed. It shares the visual language,
-the deployment shape, and the design philosophy, and otherwise just sits
-quietly next to them collecting history until the day you need to look
-backwards. The small-footprint ethos carries over intact: one container,
-one SQLite file, two runtime dependencies, and a frontend that is plain
-HTML/CSS/JS with no build step.
+SNMPCanvas feeds live values back onto those boards and into AlertCanvas -
+SyslogCanvas is the family's **independent member**: nothing feeds it,
+nothing reads from it, and it needs none of the others installed.
+(AlertCanvas can *send* its alerts here as RFC 5424 syslog, which lands
+first-class like any other source - but that is a sender's choice, not a
+dependency.) It shares the visual language, the deployment shape, and the
+design philosophy, and otherwise just sits quietly next to them collecting
+history until the day you need to look backwards. The small-footprint
+ethos carries over intact: one container, one SQLite file, two runtime
+dependencies, and a frontend that is plain HTML/CSS/JS with no build step.
 
 ![Four SyslogCanvas themes, four views: the live message tail on Classic, warnings-and-worse filtered with sev:<=4 telling a UPS power-event story on Blueprint, an SNMP trap's decoded varbinds in the detail modal on Ember, and retention settings with database stats on Canvas](docs/hero-quadrants.png)
 
@@ -120,7 +125,8 @@ Open `http://host:9514`, set the admin password on the first-run page, and
 point your devices' syslog / trap targets at the host. That's the whole
 install. (The default web port is a nod to syslog's UDP/514, picked to
 coexist quietly with common home-lab neighbors like Uptime Kuma on 3001,
-CrossCanvas/PingCanvas on 8080/8443, and SNMPCanvas on 9161.)
+CrossCanvas/PingCanvas on 8080/8443, SNMPCanvas on 9161, and AlertCanvas
+on 9162.)
 
 Inside the container the listeners bind unprivileged ports (5514/5162) so
 the process never needs root; the compose mapping above puts them on the
@@ -393,6 +399,6 @@ sister project.
 ## License
 
 [The Unlicense](LICENSE) - public domain, same as CrossCanvas, PingCanvas,
-and SNMPCanvas. Use it, fork it, ship it at work, no attribution required.
+SNMPCanvas, and AlertCanvas. Use it, fork it, ship it at work, no attribution required.
 (Dependencies keep their own MIT licenses in `node_modules/` when you
 install or ship an image.)
