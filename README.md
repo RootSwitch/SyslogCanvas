@@ -8,23 +8,27 @@
 SyslogCanvas listens for syslog messages (UDP/514) and SNMP traps (v1/v2c,
 UDP/162), stores every datagram indexed by source IP, and gives you one
 filterable table to answer "what was that device saying at 3am". It is one
-of five members of the Canvas family:
+of six members of the Canvas family:
 [**CrossCanvas**](https://github.com/RootSwitch/CrossCanvas) draws your
 network, [**PingCanvas**](https://github.com/RootSwitch/PingCanvas) turns
 those diagrams into a live reachability wall,
 [**SNMPCanvas**](https://github.com/RootSwitch/SNMPCanvas) graphs the
 performance history,
 [**AlertCanvas**](https://github.com/RootSwitch/AlertCanvas) turns that
-history into raise/clear notifications, and SyslogCanvas remembers what
-your devices said.
+history into raise/clear notifications,
+[**LaunchCanvas**](https://github.com/RootSwitch/LaunchCanvas) is the
+suite's front door - one login for every app - and SyslogCanvas remembers
+what your devices said.
 
 Where its sisters interlock - boards flow from CrossCanvas to PingCanvas,
 SNMPCanvas feeds live values back onto those boards and into AlertCanvas -
 SyslogCanvas is the family's **independent member**: nothing feeds it,
 nothing reads from it, and it needs none of the others installed.
-(AlertCanvas can *send* its alerts here as RFC 5424 syslog, which lands
-first-class like any other source - but that is a sender's choice, not a
-dependency.) It shares the visual language, the deployment shape, and the
+(Two opt-ins soften that without breaking it: AlertCanvas can *send* its
+alerts here as RFC 5424 syslog, which lands first-class like any other
+source, and setting `SUITE_SECRET` lets the LaunchCanvas portal's single
+sign-on log you in here - a sender's choice and an operator's choice, not
+dependencies.) It shares the visual language, the deployment shape, and the
 design philosophy, and otherwise just sits quietly next to them collecting
 history until the day you need to look backwards. The small-footprint
 ethos carries over intact: one container, one SQLite file, two runtime
@@ -296,6 +300,7 @@ snmptrap -v 2c -c public <host>:162 '' 1.3.6.1.6.3.1.1.5.3 ifIndex i 2
 | `SYSLOGCANVAS_DATA` | `/data` | Directory for the SQLite db and certs |
 | `TLS_CERT` / `TLS_KEY` | `$DATA/certs/server.crt|key` | PEM cert/key pair; HTTPS turns on when both exist |
 | `ADMIN_PASSWORD` | - | Pre-set the UI password (otherwise first-run setup page) |
+| `SUITE_SECRET` | - | Opt-in suite single sign-on: accept signed login tokens from the [LaunchCanvas](https://github.com/RootSwitch/LaunchCanvas) portal (same value across the suite; see its README for the security model) |
 | `COOKIE_SECURE` | auto | `Secure` cookies: on with HTTPS, off with HTTP; set to override |
 | `TZ` | UTC | Timezone for the nightly prune and log timestamps |
 
@@ -324,6 +329,13 @@ SyslogCanvas is a networked app with a small, deliberate threat model:
   segment; a reverse proxy adds TLS termination and extra auth cleanly if
   you want to go further. The first-run setup page belongs to whoever
   reaches it first - claim it promptly or pre-set `ADMIN_PASSWORD`.
+- With `SUITE_SECRET` set, a signed token minted by the
+  [LaunchCanvas](https://github.com/RootSwitch/LaunchCanvas) portal also
+  signs you in (verified per request, no local session minted). Anyone
+  holding that secret can mint valid tokens, so treat it like the other
+  suite secrets; the LaunchCanvas README documents the full model,
+  including revocation and the host-wide cookie caveat. Unset, the token
+  path is inert.
 - The ingest path is deliberately dumb: datagrams are parsed with plain
   string handling, never executed or interpreted, all queries are
   parameterized, and everything is HTML-escaped on display. A hostile
@@ -399,6 +411,6 @@ sister project.
 ## License
 
 [The Unlicense](LICENSE) - public domain, same as CrossCanvas, PingCanvas,
-SNMPCanvas, and AlertCanvas. Use it, fork it, ship it at work, no attribution required.
+SNMPCanvas, AlertCanvas, and LaunchCanvas. Use it, fork it, ship it at work, no attribution required.
 (Dependencies keep their own MIT licenses in `node_modules/` when you
 install or ship an image.)
