@@ -215,10 +215,19 @@ const routes = [
 
     // Consistent snapshot of the database, streamed as a download.
     { method: 'GET', path: /^\/api\/backup$/, handler: (req, res) => {
-        const tmp = path.join(DATA_DIR, `.backup-${Date.now()}.db`);
-        db.prepare('VACUUM INTO ?').run(tmp);
+        // Random suffix: two same-ms requests must not collide, and every
+        // error/abort path must unlink - orphaned full-DB copies would
+        // slowly fill the data volume on a flaky connection.
+        const tmp = path.join(DATA_DIR, `.backup-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`);
+        let stat;
+        try {
+            db.prepare('VACUUM INTO ?').run(tmp);
+            stat = fs.statSync(tmp);
+        } catch (err) {
+            fs.unlink(tmp, () => {});
+            throw err;
+        }
         const stamp = new Date().toISOString().slice(0, 10);
-        const stat = fs.statSync(tmp);
         res.writeHead(200, {
             'Content-Type': 'application/octet-stream',
             'Content-Length': stat.size,
@@ -226,9 +235,10 @@ const routes = [
             'Cache-Control': 'no-store'
         });
         const stream = fs.createReadStream(tmp);
-        const cleanup = () => fs.unlink(tmp, () => {});
-        stream.on('close', cleanup);
+        const cleanup = () => { stream.destroy(); fs.unlink(tmp, () => {}); };
+        stream.on('close', () => fs.unlink(tmp, () => {}));
         stream.on('error', cleanup);
+        res.on('close', cleanup); // client abort mid-download
         stream.pipe(res);
     } }
 ];
@@ -247,7 +257,8 @@ async function handle(req, res, pathname, query) {
         let body = {};
         if (req.method === 'POST' || req.method === 'PATCH' || req.method === 'DELETE') {
             const ct = String(req.headers['content-type'] || '');
-            const hasBody = req.headers['content-length'] && req.headers['content-length'] !== '0';
+            const hasBody = req.headers['transfer-encoding'] !== undefined ||
+                (req.headers['content-length'] && req.headers['content-length'] !== '0');
             if (hasBody && !ct.includes('application/json')) return json(res, 415, { error: 'expected application/json' });
             if (hasBody) {
                 try {

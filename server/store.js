@@ -7,6 +7,11 @@ const { db, getSetting } = require('./db');
 
 const FLUSH_MS = 300;          // max latency from datagram to database
 const FLUSH_ROWS = 200;        // flush early when a burst fills the queue
+const FLUSH_CHUNK = 2000;      // max rows per transaction: bounds how long one
+                               // flush holds the event loop (a 50k-row burst in
+                               // a single transaction would block datagram
+                               // reception long enough to overflow the OS UDP
+                               // buffer); the remainder re-queues via setImmediate
 const QUEUE_MAX = 50000;       // backpressure: beyond this, drop oldest queued
 const CAP_CHECK_MS = 60 * 1000;
 
@@ -61,8 +66,17 @@ function flush() {
     flushScheduled = false;
     if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
     if (queue.length === 0) return;
-    const rows = queue;
-    queue = [];
+    let rows;
+    if (queue.length > FLUSH_CHUNK) {
+        // Cap the transaction: write a slice now, yield to the event loop so
+        // queued datagrams keep draining, and come back for the rest.
+        rows = queue.splice(0, FLUSH_CHUNK);
+        flushScheduled = true;
+        setImmediate(flush);
+    } else {
+        rows = queue;
+        queue = [];
+    }
     try {
         insertMany(rows);
     } catch (err) {
