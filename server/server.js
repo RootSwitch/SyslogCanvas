@@ -16,7 +16,8 @@ const traps = require('./traps');
 const retention = require('./retention');
 
 // Default port 9514 ("514" for syslog) - deliberately clear of the usual
-// home-lab suspects (UptimeKuma 3001, CrossCanvas/PingCanvas 8080/8443,
+// home-lab suspects (UptimeKuma 3001; suite: PingCanvas 8080/8443,
+// AlertCanvas 9162, LaunchCanvas 9160,
 // SNMPCanvas 9161).
 const PORT = parseInt(process.env.PORT || '9514', 10);
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');

@@ -13,7 +13,9 @@ services:
     image: syslogcanvas
     container_name: syslogcanvas
     # Default web port 9514 ("514" for syslog) - stays clear of UptimeKuma
-    # (3001), CrossCanvas/PingCanvas (8080/8443), and SNMPCanvas (9161) on a
+    # (3001) and the suite's neighbors: PingCanvas (serves the CrossCanvas
+    # editor too) 8080/8443, SNMPCanvas 9161, AlertCanvas 9162, LaunchCanvas
+    # 9160 - on a
     # shared docker host.
     ports:
       - "9514:9514"        # web UI (HTTP, or HTTPS once a cert exists)

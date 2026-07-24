@@ -7,8 +7,9 @@
 
 SyslogCanvas listens for syslog messages (UDP/514) and SNMP traps (v1/v2c,
 UDP/162), stores every datagram indexed by source IP, and gives you one
-filterable table to answer "what was that device saying at 3am". It is one
-of six members of the Canvas family:
+filterable table to answer "what was that device saying at 3am".
+
+It is one of six members of the Canvas family:
 [**CrossCanvas**](https://github.com/RootSwitch/CrossCanvas) draws your
 network, [**PingCanvas**](https://github.com/RootSwitch/PingCanvas) turns
 those diagrams into a live reachability wall,
@@ -117,6 +118,10 @@ easy.
 > `/srv/noc-data/syslogcanvas`, the override file (incl. SUITE_SECRET) is
 > already written, and the app is running. Just set the admin password on
 > first visit.
+> **On Windows?** Skip the `chown` steps (Docker Desktop handles ownership);
+> set env vars PowerShell-style (`$env:NAME = 'value'; npm start`); and
+> `tools/gen-cert.sh` needs Git Bash or WSL - or drop your own PEM pair at
+> the cert paths.
 
 ```yaml
 # docker-compose.yml
@@ -141,9 +146,9 @@ docker compose up -d                         # container runs as uid 1000
 Open `http://host:9514`, set the admin password on the first-run page, and
 point your devices' syslog / trap targets at the host. That's the whole
 install. (The default web port is a nod to syslog's UDP/514, picked to
-coexist quietly with common home-lab neighbors like Uptime Kuma on 3001,
-CrossCanvas/PingCanvas on 8080/8443, SNMPCanvas on 9161, and AlertCanvas
-on 9162.)
+coexist quietly with common home-lab neighbors like Uptime Kuma on 3001
+and the rest of the suite:
+PingCanvas (which also serves the CrossCanvas editor) on 8080/8443, SNMPCanvas on 9161, AlertCanvas on 9162, and LaunchCanvas on 9160.)
 
 Inside the container the listeners bind unprivileged ports (5514/5162) so
 the process never needs root; the compose mapping above puts them on the
@@ -278,13 +283,14 @@ message, host, app, and source IP at once.
 | `"link down"` | rows containing the exact phrase |
 | `ip:192.168.1.` | source IP starting with that prefix |
 | `host:sw1` / `app:sshd` | hostname / app-tag contains it |
-| `sev:err` or `sev:3` | that syslog severity; also `sev:<=3` (err and worse), `sev:>=4` |
-| `fac:daemon` or `fac:16` | that syslog facility (names: kern...local7) |
+| `sev:err` or `sev:3` | that syslog severity; also `sev:<=3` (err and worse), `sev:>=4`, and strict `sev:<3` / `sev:>4`. `severity:` works too |
+| `fac:daemon` or `fac:16` | that syslog facility (names: kern...local7); `facility:` works too |
 | `proto:syslog` / `proto:trap` | one protocol only |
-| `after:2026-07-01` / `before:2026-07-18T14:30` | receive-time bounds (local time) |
+| `after:2026-07-01` / `before:2026-07-18T14:30` | receive-time bounds (local time); `since:` / `until:` are aliases |
 | `-token` | negate anything above: `-app:cron`, `-"noise phrase"` |
 
-Severity names: `emerg alert crit err warning notice info debug`. Traps
+Severity names: `emerg alert crit err warning notice debug` plus the
+synonyms `panic critical error warn informational`. Traps
 have no syslog severity - filter them with `proto:trap` and text. Negating
 a field keeps rows that don't have the field at all (`-app:cron` still
 shows traps and unparsed lines - they aren't cron either).
