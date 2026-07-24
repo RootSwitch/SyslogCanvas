@@ -81,7 +81,7 @@ whole with whatever fields did.
 - **Single shared password** for the UI (scrypt-hashed), sessions, login
   rate limiting, automatic HTTPS when a certificate exists, and one-click
   database backups from the Settings page.
-- **29 themes** carried over from CrossCanvas's palette family, grouped the
+- **30 themes** - Classic plus 29 shared with CrossCanvas's palette family, grouped the
   same way (Paper / Warm / Cool / Night / Screen).
 
 ## Small on purpose
@@ -98,7 +98,12 @@ own logs after a reboot is a recurring problem.
 
 Two honest limits worth knowing up front: syslog and traps over UDP are
 fire-and-forget - a datagram lost on the wire is lost, which is fine for
-troubleshooting history and wrong for compliance logging. And SNMPv3 traps
+troubleshooting history and wrong for compliance logging. The receiver has
+edges of its own, sized for the same audience: datagrams are read up to
+8 KB (longer ones truncate), and a burst beyond the 50,000-row ingest
+queue drops oldest-first - the `/api/stats` endpoint reports a `dropped`
+counter so you can see if either ever happens. Trap OIDs are shown
+numerically as sent - there is no MIB resolution. And SNMPv3 traps
 are not supported; v1/v2c covers nearly all home-lab gear.
 
 Keeping the moving parts few is a design choice, not an oversight - and if
@@ -106,6 +111,12 @@ you want it to become something bigger, the license makes forking genuinely
 easy.
 
 ## Quick start (Docker)
+
+> **Installed via the [canvas-suite](https://github.com/RootSwitch/canvas-suite)
+> script?** Skip this section - your data already lives under
+> `/srv/noc-data/syslogcanvas`, the override file (incl. SUITE_SECRET) is
+> already written, and the app is running. Just set the admin password on
+> first visit.
 
 ```yaml
 # docker-compose.yml
@@ -137,8 +148,11 @@ on 9162.)
 Inside the container the listeners bind unprivileged ports (5514/5162) so
 the process never needs root; the compose mapping above puts them on the
 standard 514/162 at the host edge. If you run with `network_mode: host`
-instead, either keep the high ports and reconfigure your devices, or grant
-`cap_add: [NET_BIND_SERVICE]` and set `SYSLOG_PORT=514` / `TRAP_PORT=162`.
+instead, keep the high ports and reconfigure your devices - or lower the
+host's unprivileged-port floor (`sysctl net.ipv4.ip_unprivileged_port_start=514`,
+a host-wide setting) and set `SYSLOG_PORT=514` / `TRAP_PORT=162`. (A
+`cap_add: [NET_BIND_SERVICE]` grant does NOT work here: the container runs
+as a non-root user, and added capabilities do not survive the uid switch.)
 
 One first-run note: the setup page belongs to whoever reaches the port
 first, so on anything but a trusted segment either set `ADMIN_PASSWORD` in
@@ -300,7 +314,8 @@ snmptrap -v 2c -c public <host>:162 '' 1.3.6.1.6.3.1.1.5.3 ifIndex i 2
 | `SYSLOG_PORT` | `5514` | UDP port the syslog listener binds in-container |
 | `TRAP_PORT` | `5162` | UDP port the trap receiver binds in-container |
 | `SYSLOGCANVAS_DATA` | `/data` | Directory for the SQLite db and certs |
-| `TLS_CERT` / `TLS_KEY` | `$DATA/certs/server.crt|key` | PEM cert/key pair; HTTPS turns on when both exist |
+| `TLS_CERT` / `TLS_KEY` | `$DATA/certs/server.crt` / `.key` | PEM cert/key pair; HTTPS turns on when both exist |
+| `TRUST_PROXY` | - | `1` = honor `X-Forwarded-For` for the login limiter (behind a reverse proxy) |
 | `ADMIN_PASSWORD` | - | Pre-set the UI password (otherwise first-run setup page) |
 | `SUITE_SECRET` | - | Opt-in suite single sign-on: accept signed login tokens from the [LaunchCanvas](https://github.com/RootSwitch/LaunchCanvas) portal (same value across the suite; see its README for the security model) |
 | `COOKIE_SECURE` | auto | `Secure` cookies: on with HTTPS, off with HTTP; set to override |
