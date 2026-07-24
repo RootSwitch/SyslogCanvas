@@ -321,7 +321,7 @@ snmptrap -v 2c -c public <host>:162 '' 1.3.6.1.6.3.1.1.5.3 ifIndex i 2
 | `TRAP_PORT` | `5162` | UDP port the trap receiver binds in-container |
 | `SYSLOGCANVAS_DATA` | `/data` | Directory for the SQLite db and certs |
 | `TLS_CERT` / `TLS_KEY` | `$DATA/certs/server.crt` / `.key` | PEM cert/key pair; HTTPS turns on when both exist |
-| `TRUST_PROXY` | - | `1` = honor `X-Forwarded-For` for the login limiter (behind a reverse proxy) |
+| `TRUST_PROXY` | - | `1` = honor `X-Forwarded-For` for the login limiter. Only set this when the app's own port is unreachable except through your proxy: the header is trusted on **every** connection, so a client that can reach the port directly can forge it and evade the limiter |
 | `ADMIN_PASSWORD` | - | Pre-set the UI password (otherwise first-run setup page) |
 | `SUITE_SECRET` | - | Opt-in suite single sign-on: accept signed login tokens from the [LaunchCanvas](https://github.com/RootSwitch/LaunchCanvas) portal (same value across the suite; see its README for the security model) |
 | `COOKIE_SECURE` | auto | `Secure` cookies: on with HTTPS, off with HTTP; set to override |
