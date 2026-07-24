@@ -20,6 +20,8 @@ history into raise/clear notifications,
 suite's front door - one login for every app - and SyslogCanvas remembers
 what your devices said.
 
+**Install the whole suite in one command:** the [canvas-suite](https://github.com/RootSwitch/canvas-suite) repo is the family's landing page, with one-shot install scripts for the full six-app stack or a Pi-class PingCanvas + AlertCanvas pair.
+
 Where its sisters interlock - boards flow from CrossCanvas to PingCanvas,
 SNMPCanvas feeds live values back onto those boards and into AlertCanvas -
 SyslogCanvas is the family's **independent member**: nothing feeds it,
