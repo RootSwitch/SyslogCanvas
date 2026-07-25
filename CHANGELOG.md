@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Backup download no longer freezes the collector.** `/api/backup` copied the
+  database with a synchronous `VACUUM INTO`, which better-sqlite3 runs on the
+  event loop - so for the duration nothing was answered and nothing was drained
+  from the syslog socket. Measured on a 400MB database that was **3.0 seconds**,
+  scaling at roughly 7.6s per GB. It now uses SQLite's incremental backup, which
+  yields between batches of pages: worst single stall **0.4s**, and faster
+  overall. Only one backup runs at a time, so two clicks cannot put two full
+  copies of the database on the data volume at once.
+
 - **Cisco syslog dialects now populate host and app correctly.** IOS, IOS-XE,
   NX-OS, CatOS and ASA are all "syslog", none are RFC 3164, and none agree with
   each other. Nothing was ever dropped - `raw` always held the datagram - but
