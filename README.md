@@ -37,7 +37,7 @@ history until the day you need to look backwards. The small-footprint
 ethos carries over intact: one container, one SQLite file, two runtime
 dependencies, and a frontend that is plain HTML/CSS/JS with no build step.
 
-![Four SyslogCanvas themes, four views: the live message tail on Classic, warnings-and-worse filtered with sev:<=4 telling a UPS power-event story on Blueprint, an SNMP trap's decoded varbinds in the detail modal on Ember, and retention settings with database stats on Canvas](docs/hero-quadrants.png)
+![Four SyslogCanvas themes, four views: the live message tail on Classic, warnings-and-worse filtered with sev:<=4 down to blocked packets, a flapping core-switch interface and a failed login on Blueprint, an SNMP trap's decoded varbinds in the detail modal on Ember, and retention settings with database stats on Canvas](docs/hero-quadrants.png)
 
 ## How it works
 
