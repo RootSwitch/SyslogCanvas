@@ -43,6 +43,54 @@ function skipStructuredData(s, i) {
     return i;
 }
 
+// The one thing every Cisco dialect shares. Anchoring on this rather than on
+// the header is what makes the family tractable: the headers all differ, the
+// tag never does.
+const CISCO_MNEMONIC = /%([A-Z][A-Z0-9_]*)-(\d)-([A-Z0-9_]+)\s*:/;
+
+// Everything Cisco puts BEFORE the mnemonic, in whatever order that model
+// happens to use. Peeled off in order of how confidently each part can be
+// recognised, so the leftovers are the hostname or nothing at all.
+// Returns { host, msg_ts } if the header is ENTIRELY accounted for, or null if
+// anything unexplained is left over.
+//
+// That distinction is the whole guard. "%SYS-5-CONFIG_I:" is not proof of a
+// Cisco device - it also appears inside ordinary prose, e.g. an operator note
+// relayed through syslog. Position alone cannot separate the two. What can is
+// that a real Cisco header consists only of parts we can name; once the
+// sequence number and timestamp are removed, at most a hostname may remain.
+// Leftover prose means this was a normal message that happened to quote a
+// mnemonic, and it belongs to the RFC 3164 path.
+function parseCiscoHeader(header, now) {
+    const row = {};
+    let h = header.trim();
+    h = h.replace(/^\d+:\s*/, '');                    // IOS sequence number
+    h = h.replace(/(^|\s)[*.](?=[A-Z][a-z]{2}\s)/g, '$1');  // * unsynced clock, . synced
+    // Mmm dd [yyyy] hh:mm:ss[.frac] [TZ] - the optional YEAR is ASA's, and is
+    // exactly what stops the RFC 3164 matcher from recognising an ASA line.
+    // The trailing timezone must be UPPERCASE and sit immediately before a
+    // colon or the end of the header. Written loosely it swallows hostnames:
+    // in "14:30:00 asa-fw : %ASA-..." a lax [A-Za-z]{2,5} matches the "asa" of
+    // "asa-fw" and the host is lost, leaving "-fw" behind. A real zone reads
+    // "UTC:" or "CDT:" with no space; a hostname reads "asa-fw :" with one.
+    const ts = /([A-Z][a-z]{2})\s+(\d{1,2})(?:\s+(\d{4}))?\s+(\d{1,2}):(\d{2}):(\d{2})(?:\.\d+)?(?:\s+[A-Z]{2,5}(?=:|\s*$))?/.exec(h);
+    if (ts && MONTHS[ts[1]] !== undefined) {
+        if (ts[3]) {
+            const d = new Date(+ts[3], MONTHS[ts[1]], +ts[2], +ts[4], +ts[5], +ts[6]);
+            row.msg_ts = Math.floor(d.getTime() / 1000);
+        } else {
+            row.msg_ts = parse3164Time(MONTHS[ts[1]], +ts[2], +ts[4], +ts[5], +ts[6], now);
+        }
+        h = (h.slice(0, ts.index) + ' ' + h.slice(ts.index + ts[0].length));
+    }
+    // Whatever survives must be a hostname or nothing. ASA writes "asa-fw :"
+    // with a space before the colon; IOS writes "host:".
+    h = h.replace(/[\s:]+/g, ' ').trim();
+    if (!h) return row;                                   // no hostname sent
+    if (/^[A-Za-z0-9][\w.-]*$/.test(h)) { row.host = h; return row; }
+    return null;                                          // prose: not a Cisco header
+}
+
 // One datagram -> a messages-table row. Exported for tests and reuse.
 function parse(line, sourceIp, nowMs) {
     const now = nowMs ? new Date(nowMs) : new Date();
@@ -96,6 +144,34 @@ function parse(line, sourceIp, nowMs) {
         // Malformed 5424 header - fall through and store as-is.
         row.msg = rest;
         return row;
+    }
+
+    // --- Cisco, tried before RFC 3164 --------------------------------------
+    // IOS, IOS-XE, NX-OS, CatOS and ASA are all "syslog", none of them are RFC
+    // 3164, and none agree with each other. They do share one reliable anchor:
+    // a %FACILITY-SEVERITY-MNEMONIC: tag. Everything before it is header;
+    // everything from it on is the line an operator recognises.
+    //
+    //   IOS    <PRI>1234: host: *Jul 25 14:30:00.456: %SYS-5-CONFIG_I: msg
+    //   IOS    <PRI>000123: *Jul 25 14:30:00.456 UTC: %LINK-3-UPDOWN: msg   (no host)
+    //   CatOS  <PRI>Jul 25 14:30:00 %SYS-5-MOD_OK:Module 3 is online        (no host/seq)
+    //   ASA    <PRI>Jul 25 2026 14:30:00 asa-fw : %ASA-6-302013: msg        (a YEAR)
+    //
+    // Left to the 3164 path these parse actively WRONG rather than merely
+    // incompletely: CatOS's "%SYS-5-MOD_OK:Module" lands in the HOST column and
+    // IOS's sequence number lands in APP, poisoning host:/app: filtering for
+    // some of the most common gear there is. Nothing was ever lost - raw always
+    // held the datagram - but the columns lied.
+    const cisco = CISCO_MNEMONIC.exec(rest);
+    if (cisco) {
+        const head = parseCiscoHeader(rest.slice(0, cisco.index), now);
+        if (head) {                          // null => leftover prose, not Cisco
+            if (head.host) row.host = head.host;
+            if (head.msg_ts) row.msg_ts = head.msg_ts;
+            row.app = cisco[1];              // FACILITY: what operators filter on
+            row.msg = rest.slice(cisco.index);   // keep the %MNEMONIC: operators know
+            return row;
+        }
     }
 
     // RFC 3164: TIMESTAMP HOSTNAME TAG[pid]: MSG (each part optional in the wild)

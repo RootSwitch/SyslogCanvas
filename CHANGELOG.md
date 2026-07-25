@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- **Cisco syslog dialects now populate host and app correctly.** IOS, IOS-XE,
+  NX-OS, CatOS and ASA are all "syslog", none are RFC 3164, and none agree with
+  each other. Nothing was ever dropped - `raw` always held the datagram - but
+  the parsed columns actively lied: CatOS's `%SYS-5-MOD_OK:Module` landed in
+  the HOST field and IOS's sequence number landed in APP, so `host:` and `app:`
+  filtering was unusable for very common gear. All five are recognised by their
+  one shared anchor, the `%FACILITY-SEVERITY-MNEMONIC:` tag, with `app` set to
+  the facility (`SYS`, `LINK`, `ASA`) which is what operators actually filter
+  on. ASA's year-bearing timestamp now parses too. Guarded so a normal message
+  that merely quotes a mnemonic is left to the RFC 3164 path: the Cisco header
+  must be entirely accounted for, or it is not treated as one.
+
 ## 1.0.0 - 2026-07-18
 
 Initial public release.

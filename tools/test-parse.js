@@ -6,7 +6,7 @@
 
 const { parse } = require('../server/syslog.js');
 
-// [label, raw line, expected .msg, optional expected .host]
+// [label, raw line, expected .msg, optional expected .host, optional expected .app]
 const CASES = [
     ['5424 nil SD',          '<34>1 2003-10-11T22:14:15.003Z host.example.com su - ID47 - message here', 'message here', 'host.example.com'],
     ['5424 nil SD short',    '<13>1 2026-07-18T12:00:00Z fw app 1234 msgid - the message', 'the message', 'fw'],
@@ -16,21 +16,52 @@ const CASES = [
     ['3164 basic',           '<34>Oct 11 22:14:15 mymachine su: msg body', 'msg body'],
     ['3164 no PRI',          'Oct 11 22:14:15 host kernel: something', 'something'],
     ['3164 tag with pid',    '<38>Jul 18 09:00:00 gw sshd[1234]: accepted', 'accepted'],
+
+    // --- Cisco. None of these are RFC 3164 and none agree with each other.
+    // Before the %FACILITY-SEVERITY-MNEMONIC anchor existed they did not merely
+    // parse incompletely, they parsed WRONG: CatOS put its message body in the
+    // HOST column and IOS put its sequence number in APP, which quietly poisons
+    // host:/app: filtering for very common gear. Nothing was ever lost - raw
+    // always held the datagram - but the columns lied.
+    ['IOS seq + host + *clock',
+     '<190>1234: cube-01: *Jul 25 14:30:00.456: %SYS-5-CONFIG_I: Configured from console by admin',
+     '%SYS-5-CONFIG_I: Configured from console by admin', 'cube-01', 'SYS'],
+    ['IOS seq, no hostname',
+     '<187>000123: *Jul 25 14:30:00.456 UTC: %LINK-3-UPDOWN: Interface Gi0/1, changed state to down',
+     '%LINK-3-UPDOWN: Interface Gi0/1, changed state to down', null, 'LINK'],
+    ['CatOS, no hostname at all',
+     '<189>Jul 25 14:30:00 %SYS-5-MOD_OK:Module 3 is online',
+     '%SYS-5-MOD_OK:Module 3 is online', null, 'SYS'],
+    ['ASA, year inside the timestamp',
+     '<166>Jul 25 2026 14:30:00 asa-fw : %ASA-6-302013: Built outbound TCP connection 12345',
+     '%ASA-6-302013: Built outbound TCP connection 12345', 'asa-fw', 'ASA'],
+    // The zone must not eat a hostname: a lax [A-Za-z]{2,5} matches the "asa"
+    // of "asa-fw". A real zone abuts its colon; a hostname does not.
+    ['ASA with an uppercase timezone',
+     '<166>Jul 25 2026 14:30:00 CDT: %ASA-4-106023: Deny tcp src outside:10.1.1.1/443',
+     '%ASA-4-106023: Deny tcp src outside:10.1.1.1/443', null, 'ASA'],
+    // A % pattern deep in prose is NOT a Cisco header - the anchor only counts
+    // near the start of the line, or ordinary text would be shredded.
+    ['prose mentioning a mnemonic late',
+     '<13>Jul 25 14:30:00 host app: operator note about %SYS-5-CONFIG_I: seen earlier today',
+     'operator note about %SYS-5-CONFIG_I: seen earlier today', 'host', 'app'],
 ];
 
 let pass = 0, fail = 0;
-for (const [label, raw, expMsg, expHost] of CASES) {
+for (const [label, raw, expMsg, expHost, expApp] of CASES) {
     const row = parse(raw, '203.0.113.9');
     const msgOk = row && row.msg === expMsg;
     const hostOk = expHost === undefined || (row && row.host === expHost);
+    const appOk = expApp === undefined || (row && row.app === expApp);
     const leaked = row && typeof row.msg === 'string' && /^- /.test(row.msg);
-    if (msgOk && hostOk && !leaked) {
+    if (msgOk && hostOk && appOk && !leaked) {
         pass++;
     } else {
         fail++;
         console.log('FAIL |', label);
         console.log('     msg      got', JSON.stringify(row && row.msg), 'expected', JSON.stringify(expMsg));
         if (expHost !== undefined) console.log('     host     got', JSON.stringify(row && row.host), 'expected', JSON.stringify(expHost));
+        if (expApp !== undefined) console.log('     app      got', JSON.stringify(row && row.app), 'expected', JSON.stringify(expApp));
         if (leaked) console.log('     leaked a "- " prefix');
     }
 }
