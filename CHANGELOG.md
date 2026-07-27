@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- **A fast device clock no longer dates New Year messages a year into the
+  past.** RFC 3164 stamps carry no year, and the parser corrected only one
+  direction of the inference: "Dec 31" read on Jan 1 moved back a year, but
+  "Jan 1 00:03" read at Dec 31 23:59 - a device clock minutes fast - became
+  Jan 1 of the current year, about 365 days in the past, and every message
+  from that device stayed a year wrong until the server crossed midnight. A
+  stamp landing more than ~363 days in the past now belongs to next year;
+  genuinely old backlog (hours or days) is untouched either way. Covered in
+  `tools/test-parse.js`.
+
+- **Passwords hash and verify off the event loop.** `crypto.scryptSync` in
+  `server/auth.js` serialised concurrent logins into one unbroken stall (8 at
+  once measured ~218ms in which nothing was answered and no datagram drained),
+  while each single call sat under per-call blocking thresholds - the burst is
+  the cost, so a blocking sweep cannot see it. Now the async `crypto.scrypt`,
+  awaited in the setup, login and password-change handlers; the server waits
+  for the `ADMIN_PASSWORD` seed before listening. The stored hash format is
+  unchanged - `tools/test-auth.js` (new, in `npm test`) proves a hash minted
+  by the old synchronous code still verifies.
+
 - **Backup download no longer freezes the collector.** `/api/backup` copied the
   database with a synchronous `VACUUM INTO`, which better-sqlite3 runs on the
   event loop - so for the duration nothing was answered and nothing was drained

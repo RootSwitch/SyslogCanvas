@@ -113,15 +113,21 @@ process.on('unhandledRejection', (err) => {
 
 const server = tlsOptions ? https.createServer(tlsOptions, handler) : http.createServer(handler);
 
-auth.seedFromEnv();
-store.start();
-syslog.start();
-traps.start();
-retention.start();
-server.listen(PORT, () => {
-    console.log(new Date().toISOString(),
-        `[server] SyslogCanvas listening on ${tlsOptions ? 'https' : 'http'}://0.0.0.0:${PORT}` +
-        (tlsOptions ? ` (cert: ${CERT_PATH})` : ''));
+// seedFromEnv hashes (async), and nothing may accept a request before the
+// seed lands - an unclaimed setup page is the thing the seed exists to prevent.
+auth.seedFromEnv().then(() => {
+    store.start();
+    syslog.start();
+    traps.start();
+    retention.start();
+    server.listen(PORT, () => {
+        console.log(new Date().toISOString(),
+            `[server] SyslogCanvas listening on ${tlsOptions ? 'https' : 'http'}://0.0.0.0:${PORT}` +
+            (tlsOptions ? ` (cert: ${CERT_PATH})` : ''));
+    });
+}).catch((err) => {
+    console.error(new Date().toISOString(), '[server] failed to seed ADMIN_PASSWORD:', err);
+    process.exit(1);
 });
 
 // Docker sends SIGTERM on stop: stop the listeners, flush the ingest queue,
