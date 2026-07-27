@@ -18,10 +18,15 @@ function log(...args) { console.log(new Date().toISOString(), '[syslog]', ...arg
 
 // "Jul 18 12:00:05" (RFC 3164, no year) -> epoch seconds. The year is
 // inferred as current-year unless that lands more than 2 days in the future
-// (a Dec 31 message read on Jan 1), in which case it's last year.
+// (a Dec 31 message read on Jan 1: last year) or more than ~363 days in the
+// past - the mirror case, a device clock a few minutes FAST sending "Jan 1
+// 00:03" while the server is still at Dec 31 23:59, which read as current-year
+// Jan 1 is a year ago (next year is right). Both windows leave real backlog
+// (a message legitimately hours or days old) alone.
 function parse3164Time(mon, day, h, m, s, now) {
     const d = new Date(now.getFullYear(), mon, day, h, m, s);
     if (d.getTime() - now.getTime() > 2 * 86400 * 1000) d.setFullYear(d.getFullYear() - 1);
+    else if (now.getTime() - d.getTime() > 363 * 86400 * 1000) d.setFullYear(d.getFullYear() + 1);
     return Math.floor(d.getTime() / 1000);
 }
 

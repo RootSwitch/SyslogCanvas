@@ -66,5 +66,32 @@ for (const [label, raw, expMsg, expHost, expApp] of CASES) {
     }
 }
 
+// --- RFC 3164 year inference around New Year -------------------------------
+// The stamp has no year, so parse() infers one from the receive clock. Both
+// directions of clock skew matter: a Dec 31 stamp read on Jan 1 (slow device)
+// belongs to LAST year, and a Jan 1 stamp read on Dec 31 (fast device) belongs
+// to NEXT year - that second case used to land a full year in the past.
+// [label, raw line, receive time, expected message time] (all local time)
+const YEAR_CASES = [
+    ['slow device: Dec 31 stamp read on Jan 1',
+     '<13>Dec 31 23:59:00 host app: late', new Date(2027, 0, 1, 0, 1, 0), new Date(2026, 11, 31, 23, 59, 0)],
+    ['fast device: Jan 1 stamp read on Dec 31',
+     '<13>Jan  1 00:03:00 host app: early', new Date(2026, 11, 31, 23, 59, 0), new Date(2027, 0, 1, 0, 3, 0)],
+    ['same year, hours old: untouched',
+     '<13>Jul 25 08:00:00 host app: backlog', new Date(2026, 6, 27, 12, 0, 0), new Date(2026, 6, 25, 8, 0, 0)],
+];
+for (const [label, raw, now, expected] of YEAR_CASES) {
+    const row = parse(raw, '203.0.113.9', now.getTime());
+    const want = Math.floor(expected.getTime() / 1000);
+    if (row && row.msg_ts === want) {
+        pass++;
+    } else {
+        fail++;
+        console.log('FAIL |', label);
+        console.log('     msg_ts   got', row && row.msg_ts, `(${row && row.msg_ts && new Date(row.msg_ts * 1000).toISOString()})`,
+            'expected', want, `(${expected.toISOString()})`);
+    }
+}
+
 console.log(`\n${fail === 0 ? 'PASS' : 'FAIL'} - ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
