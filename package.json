@@ -1,28 +1,28 @@
 {
-  "name": "syslogcanvas",
-  "version": "1.0.0",
-  "description": "Lightweight self-hosted syslog + SNMP trap receiver: catch UDP syslog and v1/v2c traps, store them in SQLite, review and export them from a dependency-light web UI.",
-  "license": "Unlicense",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/RootSwitch/SyslogCanvas.git"
-  },
-  "homepage": "https://github.com/RootSwitch/SyslogCanvas",
-  "bugs": {
-    "url": "https://github.com/RootSwitch/SyslogCanvas/issues"
-  },
-  "type": "commonjs",
-  "main": "server/server.js",
-  "scripts": {
-    "start": "node server/server.js",
-    "send-test": "node tools/send-test.js",
-    "test": "node tools/test-parse.js && node tools/test-auth.js"
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "dependencies": {
-    "better-sqlite3": "^12.2.0",
-    "net-snmp": "^3.20.0"
-  }
+    "name": "syslogcanvas",
+    "version": "1.0.0",
+    "description": "Lightweight self-hosted syslog + SNMP trap receiver: catch UDP syslog and v1/v2c traps, store them in SQLite, review and export them from a dependency-light web UI.",
+    "license": "Unlicense",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/RootSwitch/SyslogCanvas.git"
+    },
+    "homepage": "https://github.com/RootSwitch/SyslogCanvas",
+    "bugs": {
+        "url": "https://github.com/RootSwitch/SyslogCanvas/issues"
+    },
+    "type": "commonjs",
+    "main": "server/server.js",
+    "scripts": {
+        "start": "node server/server.js",
+        "send-test": "node tools/send-test.js",
+        "test": "node tools/test-parse.js && node tools/test-auth.js && node tools/test-theme.js"
+    },
+    "engines": {
+        "node": ">=20"
+    },
+    "dependencies": {
+        "better-sqlite3": "^12.2.0",
+        "net-snmp": "^3.20.0"
+    }
 }
