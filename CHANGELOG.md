@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **The container healthcheck no longer leaks zombies onto the host.** The
+  image runs `node` as PID 1, and Node does not reap processes it did not
+  spawn - so the HEALTHCHECK's `wget` left an `ssl_client` behind on every
+  HTTPS probe and nothing collected it. One a minute, indefinitely. A zombie
+  still holds a process slot against the `nproc` limit of the HOST uid the
+  container runs as (1000), so after roughly a day that user could no longer
+  fork: its SSH logins failed with "Server refused to start a shell/command"
+  while root connected fine, and only a reboot cleared it. The symptom points
+  nowhere near a log collector, which is why it went unexplained for a while.
+  `docker-compose.yml` now sets `init: true`, putting tini at PID 1 to reap
+  orphans. No image rebuild needed - `docker compose up -d` recreates the
+  container with the init in place, and that also clears the existing zombies.
+
 - **A fast device clock no longer dates New Year messages a year into the
   past.** RFC 3164 stamps carry no year, and the parser corrected only one
   direction of the inference: "Dec 31" read on Jan 1 moved back a year, but
