@@ -407,6 +407,24 @@
     }
 
     // ===== settings =====
+    // The consequence line under the retention controls. Two limits are
+    // configured but only one governs, and which one depends on the arrival
+    // rate - so say it outright instead of leaving the operator to divide the
+    // Database panel's numbers by hand.
+    function outlookLine(h, retentionDays, maxRows) {
+        if (!h || h.heldDays == null) {
+            return h && h.rowCount > 0
+                ? `Holding ${h.rowCount.toLocaleString()} messages, collecting for under an hour - too early to project.`
+                : 'No messages stored yet.';
+        }
+        const days = (d) => d >= 10 ? Math.round(d).toLocaleString() : d.toFixed(1);
+        const span = (d) => d >= 730 ? `about ${Math.round(d / 365).toLocaleString()} years` : `about ${days(d)} days`;
+        const base = `Holding ${h.rowCount.toLocaleString()} messages spanning ${days(h.heldDays)} days - about ${Math.round(h.rowsPerDay).toLocaleString()} a day.`;
+        return h.governs === 'cap'
+            ? `${base} At this rate the ${maxRows.toLocaleString()}-row cap holds ${span(h.capDays)}, so it governs before the ${retentionDays}-day window; steady size near ${fmtBytes(h.steadyBytes)}.`
+            : `${base} The ${retentionDays}-day window governs (the row cap alone would hold ${span(h.capDays)}), levelling off near ${fmtBytes(h.steadyBytes)}.`;
+    }
+
     async function renderSettings() {
         setNav('settings', true);
         let s, st;
@@ -430,6 +448,7 @@
                 <label>Row cap</label>
                 <span><input type="number" id="s-maxrows" value="${s.maxRows}" min="1000" step="1000" style="width:130px"> messages</span>
             </div>
+            <div class="muted small" style="margin-top:8px" title="Measured from what is stored now. Log rates swing with what the network is doing, so the cap-days figure is an estimate, not a promise.">${outlookLine(s.history, s.retentionDays, s.maxRows)}</div>
             <div class="form-actions">
                 <button class="btn-primary" id="s-save">Save settings</button>
                 <span id="s-msg"></span>

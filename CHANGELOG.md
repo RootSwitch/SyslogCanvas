@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Settings now says which retention limit actually governs.** Two limits
+  have always been configured - the day window and the row cap - but which
+  one bites first depends on your arrival rate, a number the settings alone
+  cannot tell you. A line under the retention controls now states it
+  outright: how many messages are held, how many days they span, the
+  measured rate per day, how many days the row cap holds at that rate, which
+  of the two limits governs, and the size the database levels off at. Under
+  an hour of data it declines to project rather than dress noise up as a
+  forecast.
+
 - **Bring your own theme, without a rebuild.** A `theme.json` in the data
   directory adds a thirtieth entry to the picker, above the twenty-nine shipped
   ones. Same fifteen `--se-*` variables, hex only, and partial files are fine -

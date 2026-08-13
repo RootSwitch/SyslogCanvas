@@ -48,6 +48,39 @@ function clientIp(req) {
     return req.socket.remoteAddress || 'unknown';
 }
 
+function dbSizeBytes() {
+    let bytes = 0;
+    for (const suffix of ['', '-wal', '-shm']) {
+        try { bytes += fs.statSync(path.join(DATA_DIR, 'syslogcanvas.db' + suffix)).size; } catch (_) { /* absent */ }
+    }
+    return bytes;
+}
+
+// The consequence line for the Retention settings: two limits are configured
+// (a day window and a row cap) but only one of them actually governs, and
+// which one depends on the arrival rate - a number the operator cannot know
+// from the settings alone. Everything here is measured from what is stored
+// now: rows over days-held gives the rate, the rate prices the cap in days,
+// and the smaller of cap-days and window-days is the retention the operator
+// is really getting. Exported for tools/test-retention.js.
+function retentionOutlook(rowCount, dbBytes, oldestTs, retentionDays, maxRows, nowS) {
+    const heldDays = (rowCount > 0 && oldestTs != null) ? (nowS - oldestTs) / 86400 : null;
+    if (heldDays == null || heldDays < 1 / 24) {
+        // Empty, under an hour of data, or a clock-skewed oldest row: a rate
+        // built on that would be noise dressed as a projection. Honest nulls.
+        return { rowCount, dbBytes, heldDays, rowsPerDay: null, bytesPerDay: null, capDays: null, governs: null, effectiveDays: null, steadyBytes: null };
+    }
+    const rowsPerDay = rowCount / heldDays;
+    const bytesPerDay = dbBytes / heldDays;
+    const capDays = maxRows / rowsPerDay;
+    const governs = capDays < retentionDays ? 'cap' : 'days';
+    const effectiveDays = Math.min(capDays, retentionDays);
+    return {
+        rowCount, dbBytes, heldDays, rowsPerDay, bytesPerDay, capDays, governs, effectiveDays,
+        steadyBytes: Math.round(bytesPerDay * effectiveDays)
+    };
+}
+
 function messageSummary(r) {
     return {
         id: r.id, ts: r.ts, msgTs: r.msg_ts, sourceIp: r.source_ip, proto: r.proto,
@@ -203,23 +236,24 @@ const routes = [
         const agg = db.prepare('SELECT count(*) AS n, min(ts) AS oldest, max(ts) AS newest FROM messages').get();
         const topSources = db.prepare(
             'SELECT source_ip AS sourceIp, count(*) AS n FROM messages GROUP BY source_ip ORDER BY n DESC LIMIT 10').all();
-        let dbBytes = 0;
-        for (const suffix of ['', '-wal', '-shm']) {
-            try { dbBytes += fs.statSync(path.join(DATA_DIR, 'syslogcanvas.db' + suffix)).size; } catch (_) { /* absent */ }
-        }
         ok(res, {
             rowCount: agg.n, oldestTs: agg.oldest, newestTs: agg.newest,
-            dbBytes, topSources, ingest: store.stats()
+            dbBytes: dbSizeBytes(), topSources, ingest: store.stats()
         });
     } },
 
     { method: 'GET', path: /^\/api\/settings$/, handler: (req, res) => {
+        const retentionDays = parseInt(getSetting('retention_days'), 10);
+        const maxRows = parseInt(getSetting('max_rows'), 10);
+        const agg = db.prepare('SELECT count(*) AS n, min(ts) AS oldest FROM messages').get();
         ok(res, {
-            retentionDays: parseInt(getSetting('retention_days'), 10),
-            maxRows: parseInt(getSetting('max_rows'), 10),
+            retentionDays,
+            maxRows,
             dataDir: DATA_DIR,
             syslogPort: syslog.PORT,
-            trapPort: traps.PORT
+            trapPort: traps.PORT,
+            history: retentionOutlook(agg.n, dbSizeBytes(), agg.oldest, retentionDays, maxRows,
+                Math.floor(Date.now() / 1000))
         });
     } },
 
@@ -364,4 +398,4 @@ function readJson(req, limit = 1024 * 1024) {
     });
 }
 
-module.exports = { handle };
+module.exports = { handle, retentionOutlook };
