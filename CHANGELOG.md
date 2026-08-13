@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **Filter by boxes, not just syntax.** A Fields button beside the filter
+  box opens per-field inputs - host, app, source IP, message text, severity
+  (with an "and worse" option), facility, protocol - that compose the same
+  filter tokens the grammar accepts and AND with whatever the filter box
+  already says. The advanced path is unchanged; the fields are for everyone
+  who should not have to learn `sev:<=4` to see warnings and worse. While
+  any field is active the button carries a dot, so a collapsed panel can
+  never silently filter the list. New `msg:` operator underneath: message
+  text alone, for when a plain term would also match host/app/IP - and the
+  grammar's SQL builder now has its own test file.
+
 - **Settings now says which retention limit actually governs.** Two limits
   have always been configured - the day window and the row cap - but which
   one bites first depends on your arrival rate, a number the settings alone

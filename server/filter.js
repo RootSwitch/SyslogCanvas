@@ -8,6 +8,8 @@
 //   "quoted phrase"       spaces inside one term
 //   ip:192.168.1.         source IP starts with it
 //   host:sw1  app:sshd    field contains it
+//   msg:fail              message text alone contains it (plain terms match
+//                         msg/host/app/ip; msg: pins the match to the message)
 //   sev:err  sev:<=3      syslog severity by name/number, optional <= >= < >
 //   fac:daemon            syslog facility by name/number
 //   proto:syslog|trap     one protocol only
@@ -80,6 +82,12 @@ function tokenToSql(token) {
             cond = { sql: "host LIKE ? ESCAPE '\\'", params: ['%' + likeEscape(value) + '%'] };
         } else if (key === 'app') {
             cond = { sql: "app LIKE ? ESCAPE '\\'", params: ['%' + likeEscape(value) + '%'] };
+        } else if (key === 'msg') {
+            // Message text ONLY - a plain term also matches host/app/ip, which
+            // is right for quick searches but wrong for the fielded panel's
+            // "Message contains" box (a hostname fragment there would match
+            // every row from that host regardless of message).
+            cond = { sql: "msg LIKE ? ESCAPE '\\'", params: ['%' + likeEscape(value) + '%'] };
         } else if (key === 'sev' || key === 'severity') {
             const lv = parseLeveled(value, SEVERITIES);
             if (lv) cond = { sql: `severity ${lv.op} ?`, params: [lv.value] };

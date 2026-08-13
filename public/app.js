@@ -186,6 +186,32 @@
     // ===== messages =====
     // The filter survives navigation and auto-refresh: it IS the tool.
     let msgFilter = '';
+    // The fielded panel composes grammar tokens the user never has to type -
+    // the free-text box stays the quick/advanced path, and both AND together
+    // at request time through the same server-side builder, so the table and
+    // the CSV export can never disagree about what "the current filter" means.
+    const fieldFilters = { host: '', app: '', ip: '', msg: '', sev: '', sevWorse: false, fac: '', proto: '' };
+    const SEV_NAMES = ['emerg', 'alert', 'crit', 'err', 'warning', 'notice', 'info', 'debug'];
+    const FAC_NAMES = ['kern', 'user', 'mail', 'daemon', 'auth', 'syslog', 'lpr', 'news', 'uucp', 'cron',
+        'authpriv', 'ftp', 'ntp', 'audit', 'alert', 'clock', 'local0', 'local1', 'local2', 'local3',
+        'local4', 'local5', 'local6', 'local7'];
+    function fieldTokens() {
+        const t = [];
+        // A multi-word field value becomes one token per word (AND of
+        // contains) - the grammar's quoting can't wrap a prefixed token.
+        const each = (prefix, v) => String(v).trim().split(/\s+/).filter(Boolean).forEach((w) => t.push(prefix + w));
+        each('host:', fieldFilters.host);
+        each('app:', fieldFilters.app);
+        each('ip:', fieldFilters.ip);
+        each('msg:', fieldFilters.msg);
+        if (fieldFilters.sev !== '') t.push('sev:' + (fieldFilters.sevWorse ? '<=' : '') + fieldFilters.sev);
+        if (fieldFilters.fac !== '') t.push('fac:' + fieldFilters.fac);
+        if (fieldFilters.proto !== '') t.push('proto:' + fieldFilters.proto);
+        return t;
+    }
+    function effectiveFilter() {
+        return [msgFilter.trim(), ...fieldTokens()].filter(Boolean).join(' ');
+    }
     let msgRows = [];
     let msgHasMore = false;
     let fetchSeq = 0;      // discards out-of-order responses from fast typing
@@ -210,7 +236,7 @@
     const refreshMs = () => lsGet('syslogcanvas-refresh', 5000, REFRESH_CHOICES.map((c) => c[0]));
 
     function messagesUrl(cursor) {
-        let url = `/api/messages?limit=${pageSize()}&q=${encodeURIComponent(msgFilter)}`;
+        let url = `/api/messages?limit=${pageSize()}&q=${encodeURIComponent(effectiveFilter())}`;
         if (cursor) url += `&before_ts=${cursor.ts}&before_id=${cursor.id}`;
         return url;
     }
@@ -231,7 +257,7 @@
         const count = document.getElementById('msg-count');
         if (!body) return;
         body.innerHTML = msgRows.length === 0
-            ? `<tr><td colspan="6" class="muted" style="padding:18px 8px">${msgFilter ? 'Nothing matches this filter.' : "No messages yet - point your devices' syslog and SNMP trap targets at this host."}</td></tr>`
+            ? `<tr><td colspan="6" class="muted" style="padding:18px 8px">${effectiveFilter() ? 'Nothing matches this filter.' : "No messages yet - point your devices' syslog and SNMP trap targets at this host."}</td></tr>`
             : msgRows.map(rowHtml).join('');
         const from = (msgPage - 1) * pageSize() + 1;
         count.textContent = msgRows.length === 0
@@ -353,14 +379,36 @@
         </div>
         <div class="filter-bar">
             <input type="search" id="msg-filter" spellcheck="false"
-                placeholder='Filter: text, "quoted phrase", ip: host: app: sev: fac: proto: after: before:, -negate'
+                placeholder='Filter: text, "quoted phrase", ip: host: app: msg: sev: fac: proto: after: before:, -negate'
                 value="${esc(msgFilter)}">
+            <button id="ff-toggle" title="Per-field filter boxes - filter without the syntax. Fields AND with the filter box.">Fields</button>
             <select id="msg-pagesize" title="Rows per page">
                 ${PAGE_SIZES.map((n) => `<option value="${n}" ${n === pageSize() ? 'selected' : ''}>${n} / page</option>`).join('')}
             </select>
             <select id="msg-refresh" title="How often the newest page refreshes - Paused freezes it for reading">
                 ${REFRESH_CHOICES.map(([ms, label]) => `<option value="${ms}" ${ms === refreshMs() ? 'selected' : ''}>${ms === 0 ? label : 'Refresh ' + label}</option>`).join('')}
             </select>
+        </div>
+        <div class="filter-bar" id="ff-panel" style="display:${lsGet('syslogcanvas-fields-open', 0, [0, 1]) ? 'flex' : 'none'}">
+            <input type="search" id="ff-host" placeholder="Host" title="host: - host field contains this" style="min-width:110px" value="${esc(fieldFilters.host)}">
+            <input type="search" id="ff-app" placeholder="App" title="app: - app/process field contains this" style="min-width:90px" value="${esc(fieldFilters.app)}">
+            <input type="search" id="ff-ip" placeholder="Source IP" title="ip: - source IP starts with this" style="min-width:110px" value="${esc(fieldFilters.ip)}">
+            <input type="search" id="ff-msg" placeholder="Message" title="msg: - message text alone contains this (the filter box's plain terms also match host/app/IP)" style="min-width:150px" value="${esc(fieldFilters.msg)}">
+            <select id="ff-sev" title="sev: - syslog severity">
+                <option value="">Severity</option>
+                ${SEV_NAMES.map((s) => `<option value="${s}" ${fieldFilters.sev === s ? 'selected' : ''}>${s}</option>`).join('')}
+            </select>
+            <label class="muted small" title="sev:&lt;= - the chosen severity and anything more severe" style="white-space:nowrap"><input type="checkbox" id="ff-sevworse" ${fieldFilters.sevWorse ? 'checked' : ''}> and worse</label>
+            <select id="ff-fac" title="fac: - syslog facility">
+                <option value="">Facility</option>
+                ${FAC_NAMES.map((f) => `<option value="${f}" ${fieldFilters.fac === f ? 'selected' : ''}>${f}</option>`).join('')}
+            </select>
+            <select id="ff-proto" title="proto: - one protocol only">
+                <option value="">Protocol</option>
+                <option value="syslog" ${fieldFilters.proto === 'syslog' ? 'selected' : ''}>syslog</option>
+                <option value="trap" ${fieldFilters.proto === 'trap' ? 'selected' : ''}>trap</option>
+            </select>
+            <button id="ff-clear" title="Clear the field filters (the filter box keeps its text)">Clear</button>
         </div>
         <div class="panel">
             <table class="list"><thead><tr>
@@ -386,8 +434,38 @@
             clearTimeout(debounce);
             debounce = setTimeout(() => gotoPage(1), 300);
         });
+
+        // Fielded panel: the button carries a dot while any field is active,
+        // so a collapsed panel can never silently filter the list.
+        const ffToggle = document.getElementById('ff-toggle');
+        const ffPanel = document.getElementById('ff-panel');
+        const ffDot = () => { ffToggle.textContent = fieldTokens().length ? 'Fields •' : 'Fields'; };
+        ffDot();
+        ffToggle.addEventListener('click', () => {
+            const open = ffPanel.style.display === 'none';
+            ffPanel.style.display = open ? 'flex' : 'none';
+            lsSet('syslogcanvas-fields-open', open ? 1 : 0);
+        });
+        const ffApply = () => { ffDot(); clearTimeout(debounce); debounce = setTimeout(() => gotoPage(1), 300); };
+        for (const [id, key] of [['ff-host', 'host'], ['ff-app', 'app'], ['ff-ip', 'ip'], ['ff-msg', 'msg']]) {
+            document.getElementById(id).addEventListener('input', (ev) => {
+                fieldFilters[key] = ev.target.value;
+                ffApply();
+            });
+        }
+        document.getElementById('ff-sev').addEventListener('change', (ev) => { fieldFilters.sev = ev.target.value; ffDot(); gotoPage(1); });
+        document.getElementById('ff-sevworse').addEventListener('change', (ev) => { fieldFilters.sevWorse = ev.target.checked; ffDot(); if (fieldFilters.sev) gotoPage(1); });
+        document.getElementById('ff-fac').addEventListener('change', (ev) => { fieldFilters.fac = ev.target.value; ffDot(); gotoPage(1); });
+        document.getElementById('ff-proto').addEventListener('change', (ev) => { fieldFilters.proto = ev.target.value; ffDot(); gotoPage(1); });
+        document.getElementById('ff-clear').addEventListener('click', () => {
+            Object.assign(fieldFilters, { host: '', app: '', ip: '', msg: '', sev: '', sevWorse: false, fac: '', proto: '' });
+            for (const id of ['ff-host', 'ff-app', 'ff-ip', 'ff-msg', 'ff-sev', 'ff-fac', 'ff-proto']) document.getElementById(id).value = '';
+            document.getElementById('ff-sevworse').checked = false;
+            ffDot();
+            gotoPage(1);
+        });
         document.getElementById('msg-export').addEventListener('click', () => {
-            location.href = `/api/export.csv?q=${encodeURIComponent(msgFilter)}`;
+            location.href = `/api/export.csv?q=${encodeURIComponent(effectiveFilter())}`;
         });
         document.getElementById('msg-pagesize').addEventListener('change', (ev) => {
             lsSet('syslogcanvas-pagesize', ev.target.value);

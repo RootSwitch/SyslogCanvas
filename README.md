@@ -323,7 +323,12 @@ udp/5514, traps on udp/5162, data in `./data`).
 ## Filter syntax
 
 Everything in the filter box is ANDed together; plain text searches the
-message, host, app, and source IP at once.
+message, host, app, and source IP at once. Prefer boxes over syntax? The
+**Fields** button opens per-field inputs (host, app, source IP, message,
+severity with an "and worse" option, facility, protocol) that compose the
+same tokens for you and AND with whatever is typed in the filter box - the
+button carries a dot while any field is active, so a collapsed panel can
+never silently filter the list.
 
 | Token | Matches |
 |---|---|
@@ -331,6 +336,7 @@ message, host, app, and source IP at once.
 | `"link down"` | rows containing the exact phrase |
 | `ip:192.168.1.` | source IP starting with that prefix |
 | `host:sw1` / `app:sshd` | hostname / app-tag contains it |
+| `msg:fail` | message text alone contains it (plain terms also match host/app/IP) |
 | `sev:err` or `sev:3` | that syslog severity; also `sev:<=3` (err and worse), `sev:>=4`, and strict `sev:<3` / `sev:>4`. `severity:` works too |
 | `fac:daemon` or `fac:16` | that syslog facility (names: kern...local7); `facility:` works too |
 | `proto:syslog` / `proto:trap` | one protocol only |

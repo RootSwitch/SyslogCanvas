@@ -16,7 +16,7 @@
     "scripts": {
         "start": "node server/server.js",
         "send-test": "node tools/send-test.js",
-        "test": "node tools/test-parse.js && node tools/test-auth.js && node tools/test-theme.js && node tools/test-retention.js"
+        "test": "node tools/test-parse.js && node tools/test-filter.js && node tools/test-auth.js && node tools/test-theme.js && node tools/test-retention.js"
     },
     "engines": {
         "node": ">=20"
